@@ -270,20 +270,21 @@ function uiChambers() {
   }
   const V = dk.view.getBoundingClientRect(), img = dk.cam.getBoundingClientRect();
   const w0 = dk.cam.offsetWidth, h0 = dk.cam.offsetHeight;
-  const camTop = (V.height - h0) / 2;
+  const camTop = (V.height - h0) / 2, camLeft = dk.cam.offsetLeft;
+  dk.cam.classList.toggle('k3', k === 3);
   const z = ss(0.68, 0.84, p), s = 1 + z * 0.9;
-  const fx = 0.48, fy = 0.58;                                // the gauges and knobs
-  const tx = (V.width / 2 - fx * w0 * s) * z, ty = (V.height / 2 - (camTop + fy * h0 * s)) * z;
+  const fx = 0.48, fy = 0.564;                               // the gauges and knobs of the front shot
+  const tx = (V.width / 2 - (camLeft + fx * w0 * s)) * z, ty = (V.height / 2 - (camTop + fy * h0 * s)) * z;
   dk.cam.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${s})`;
   // the spotlight: dims everything but the active chamber
-  const sp = k === 1 ? [0.236, 0.27] : (k === 2 ? [0.713, 0.27] : null);
+  const sp = k === 1 ? [0.193, 0.44] : (k === 2 ? [0.733, 0.44] : null);
   if (sp) {
-    dk.dim.style.setProperty('--sx', `${(sp[0] * w0) / V.width * 100}%`); dk.dim.style.setProperty('--sy', `${(camTop + sp[1] * h0) / V.height * 100}%`);
-    dk.dim.style.setProperty('--sr', '15%'); dk.dim.style.setProperty('--sa', '.62');
+    dk.dim.style.setProperty('--sx', `${(camLeft + sp[0] * w0) / V.width * 100}%`); dk.dim.style.setProperty('--sy', `${(camTop + sp[1] * h0) / V.height * 100}%`);
+    dk.dim.style.setProperty('--sr', '17%'); dk.dim.style.setProperty('--sa', '.62');
   } else dk.dim.style.setProperty('--sa', '0');
   for (const tg of dk.tags) {
     const [ax, ay] = tg.dataset.at.split(',').map(Number);
-    const x = tx + ax * w0 * s, y = ty + camTop + ay * h0 * s;
+    const x = camLeft + tx + ax * w0 * s, y = ty + camTop + ay * h0 * s;
     tg.style.left = x + 'px'; tg.style.top = y + 'px';
     const on = +tg.dataset.k === k && (k < 3 || z > 0.95);
     tg.classList.toggle('on', on);
@@ -535,3 +536,27 @@ window.__lenis = lenis;
 window.__geo = new Proxy({}, { get: (_, id) => { const sec = document.getElementById(id); if (!sec) return null; const tr = sec.querySelector('.track') || document.querySelector(`.${id}-track`); const top = sec.getBoundingClientRect().top + scrollY; if (tr && PIN()) { const t = tr.getBoundingClientRect().top + scrollY; return { top, trTop: t, trH: tr.offsetHeight }; } return { top, trH: 0 }; } });
 window.__at = (id, p) => { const g = window.__geo[id]; return g.trTop + p * (g.trH - innerHeight); };
 setTimeout(() => { window.__ready = true; }, 600);
+
+/* ---------------------------------------------------------------- demo: the device from every side */
+{
+  const fig = $('#demo .vw');
+  if (fig) {
+    const imgs = $$('.vw-img', fig), btns = $$('.vw-btn', fig), cap = $('.vw-cap', fig);
+    const show = (i, focus) => {
+      imgs.forEach((im, j) => { im.classList.toggle('on', j === i); im.toggleAttribute('aria-hidden', j !== i); if (j === i) im.loading = 'eager'; });
+      btns.forEach((b, j) => { const on = j === i; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+      cap.textContent = btns[i].getAttribute('aria-label');
+      if (focus) btns[i].focus();
+    };
+    btns.forEach((b, i) => {
+      b.addEventListener('click', () => show(i));
+      b.addEventListener('keydown', ev => {
+        const n = btns.length;
+        if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') { ev.preventDefault(); show((i + (ev.key === 'ArrowRight' ? 1 : n - 1)) % n, true); }
+      });
+    });
+    // preload the other views once the section is near, so a switch never waits
+    const io = new IntersectionObserver(es => { if (es.some(x => x.isIntersecting)) { imgs.forEach(im => { im.loading = 'eager'; }); io.disconnect(); } }, { rootMargin: '600px' });
+    io.observe(fig);
+  }
+}
